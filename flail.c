@@ -68,7 +68,20 @@
 #else
 #undef  __DEBUG__
 #endif
- 
+
+typedef struct { char forward; 
+					  char backward; 
+					  char left;
+					  char right;
+					  char roll; } Instructions;
+
+// Association of specific bytes to instructions
+Instructions inst = {.forward = 0x0,
+							.backward = 0x1, 
+							.left = 0x2, 
+							.right = 0x3, 
+							.roll = 0x4 };
+
 typedef unsigned char byte;
  
 size_t bytes_alloc = 1;
@@ -218,15 +231,15 @@ int interpretTokens(char **tokens, size_t nt){
  
    cmd = tokens[0];
    if (!strcmp(cmd, "Forward")) {  
-        c = 0;
+        c = inst.forward;
    } else if (!strcmp(cmd, "Backward")) {
-        c = 1;
+        c = inst.backward;
    } else if (!strcmp(cmd, "Left")) {
-        c = 2;
+        c = inst.left;
    } else if (!strcmp(cmd, "Right")) {
-        c = 3;
+        c = inst.right;
    } else if (!strcmp(cmd, "Roll")) {
-        c = 4;
+        c = inst.roll;
    } else {
 		printf("\nINVALID COMMAND found: %s \n", cmd );
 		exit(1);
@@ -325,7 +338,18 @@ void createBoilerplate() {
 	
 	FILE *fp = fopen(boilerplate, "ab+");
 	fprintf(fp, "#include <stdio.h>\n#include <stdlib.h> \n#include <string.h> \n\n");
-	fprintf(fp, "typedef unsigned char byte; \n");
+	fprintf(fp, "typedef struct { char forward; \n\
+	\tchar backward; \n\
+	\tchar left; \n\
+	\tchar right; \n\
+	\tchar roll; } Instructions; \n\
+// Association of specific bytes to instructions \n\
+Instructions inst = {.forward = 0x0, \n\
+	\t.backward = 0x1, \n\
+	\t.left = 0x2, \n\
+	\t.right = 0x3, \n\
+	\t.roll = 0x4 };\n"); 
+	fprintf(fp, "typedef unsigned char byte; \n\n");
 
 	fprintf(fp, "size_t size = %d; \n\n", bytes_used + 1);
 
@@ -342,31 +366,31 @@ void createBoilerplate() {
 	\tint i; \n\
 	\tint param;\n\n \
 	\tfor (i = 0; i < size - 1; i += 2) { \n\
-	\t\tparam = bytes[i+1];\n \
+	\t\tparam = (int)bytes[i+1];\n \
 	\t\tswitch(bytes[i]) { \n \
 	\t\t\tcase 0x0: \n\
-	\t\t\t\tprintf(\"Forward\"); \n\
+	\t\t\t\tprintf(\"Forward (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tcase 0x1: \n\
-	\t\t\t\tprintf(\"Backwards\"); \n\
+	\t\t\t\tprintf(\"Backwards (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tcase 0x2: \n\
-	\t\t\t\tprintf(\"Left\"); \n\
+	\t\t\t\tprintf(\"Left (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tcase 0x3: \n\
-	\t\t\t\tprintf(\"Right\"); \n\
+	\t\t\t\tprintf(\"Right (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tcase 0x4: \n\
-	\t\t\t\tprintf(\"Roll\"); \n\
+	\t\t\t\tprintf(\"Roll (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tdefault: \n\
 	\t\t\t\tbreak; \n\
 	\t\t} \n\
 	\t} \n\
 	} \n\n\
-	int main() { \n\
-	\tinterpretBytes(); \n\
-	}");
+int main() { \n\
+\tinterpretBytes(); \n\
+}");
 }
 
 int main(int argc, char* argv[]) {
