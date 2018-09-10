@@ -69,20 +69,22 @@
 #undef  __DEBUG__
 #endif
 
-typedef struct { char forward; 
-					  char backward; 
-					  char left;
-					  char right;
-					  char roll; } Instructions;
+typedef unsigned char byte;
+
+typedef struct { byte forward; 
+					  byte backward; 
+					  byte left;
+					  byte right;
+					  byte roll; } Instructions;
 
 // Association of specific bytes to instructions
-Instructions inst = {.forward = 0x0,
+const Instructions inst = {.forward = 0x0,
 							.backward = 0x1, 
 							.left = 0x2, 
 							.right = 0x3, 
 							.roll = 0x4 };
 
-typedef unsigned char byte;
+
  
 size_t bytes_alloc = 1;
 size_t bytes_used = 0;
@@ -208,6 +210,12 @@ void printByteArr() {
 	}
 }
  
+// Launch error if instructions aren't separated by a ';' within the token array 
+void tokenizationError() {
+	printf("\nTokenization error: Make sure that your instructions are separated by a ';'.\n\n");
+	exit(1);
+}
+
 /**
  *  Executes the command corresponding to the given array of tokens.
  *  The first token is the command name, and the following tokens, its arguments.
@@ -227,6 +235,7 @@ int interpretTokens(char **tokens, size_t nt){
    // No tokens given
    if (nt < 1) return -1;
  
+   // Make sure there is enough room in the bytes array to add another instruction
    checkByteArrSize();
  
    cmd = tokens[0];
@@ -247,26 +256,38 @@ int interpretTokens(char **tokens, size_t nt){
 
     bytes[bytes_used++] = c;
  
+	 // Make sure there is enough room in the byte array to add a parameter
     checkByteArrSize();
  
     param = atoi(tokens[1]) % 255; //Take the second argument in tokens which would be a number, and convert it to a character. Add it to the bytes array. NOTE - currently modded by 255 to prevent errors.
  
     bytes[bytes_used++] = (byte) param;
-     
+
+	 // Currently, it is expected that each token array will contain two elements, 
+	 // an instruction and a parameter, if there are more elements then the instructions probablye
+	 // weren't split correctly by a ';'
+	 if (nt > 2) tokenizationError();
+
+	 return 0; 
 }
- 
+
 /**
- *  Reads a file containing a subset of bash commands and interprets them.
+ *  Reads a file containing a subset of flail commands and interprets them.
+ *  To make sure that each command is separated by a ';', each line is first tokenized by using
+ *  ';' as a delimiter, each element found within the resulting token array is then tokenized by using
+ *  ' ,(,)' [space, (, and )] as delimiters.
  *
  *  @param script - name of the script file.
 */
 int parseScript(const char* script) {
     FILE *fp;
     int i;
-    size_t nt; // number of tokens
+    size_t nt; // number of tokens separated by ';'
+	 size_t ntInst; // number of tokens within the tokens array separated by ' ', '(', or ')'
     char buf[256]; // lines limited to 256B
     char **tokens = NULL;
- 
+ 	 char	**tokensInst = NULL;
+
     fp = fopen(script, "r");
      
     if (fp == NULL){
@@ -289,10 +310,9 @@ int parseScript(const char* script) {
                 // Check for empty lines
             if (isBlank(buf)) continue;
  
-				char delim[] = " ,(,),;";
+				// First split the lines by ';'
+				char delim[] = ";";
             tokens = strsplit (buf, delim, &nt); 
-            findComment (tokens, &nt);
- 
  
             #ifdef __DEBUG__
              //findComment (tokens, &nt);
@@ -304,23 +324,36 @@ int parseScript(const char* script) {
             #endif
  
              if (nt) {
- 
-                //char** split = splitFuncParam(tokens);
-                interpretTokens (tokens, nt);
- 
-                // attempts to resize the memory block pointed to by bytes
-                // that was previously allocated with a call to malloc or calloc.
-                bytes = realloc(bytes, (bytes_used + 1) * sizeof(byte));
-                bytes[bytes_used] = '\0'; // lets put a (char *)0 to mark the end of the array
-                
+					 int i;
+ 					 for (i = 0; i < nt; i++) {
+						 char delimInst[] =  " ,(,)";
+						 tokensInst = strsplit(tokens[i], delimInst, &ntInst);
+
+						 if (ntInst == 0) {
+						 	tokenizationError();
+						 }
+
+            		 findComment (tokensInst, &ntInst); // Ignore comments
+		             interpretTokens (tokensInst, ntInst);
+
+				       if (tokensInst) {
+				          freeTokens(tokensInst, ntInst);
+				          tokensInst = NULL;
+				       }
+                }
              }
- 
+
              // If the tokens array was successfully allocated, free every element
             if (tokens) {
                 freeTokens(tokens,nt);
                 tokens = NULL;
             }
         }
+
+		 // attempts to resize the memory block pointed to by bytes
+       // that was previously allocated with a call to malloc or calloc.
+       bytes = realloc(bytes, (bytes_used + 1) * sizeof(byte));
+       bytes[bytes_used] = '\0'; // lets put a (char *)0 to mark the end of the array
     }
  
     return 0;
@@ -344,7 +377,7 @@ void createBoilerplate() {
 	\tchar right; \n\
 	\tchar roll; } Instructions; \n\
 // Association of specific bytes to instructions \n\
-Instructions inst = {.forward = 0x0, \n\
+const Instructions inst = {.forward = 0x0, \n\
 	\t.backward = 0x1, \n\
 	\t.left = 0x2, \n\
 	\t.right = 0x3, \n\
