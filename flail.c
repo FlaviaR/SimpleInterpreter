@@ -137,7 +137,7 @@ void freeTokens ( char** tokens, size_t nt ) {
         free (tokens[i]);
    free(tokens);
 }
- 
+
 /** Splits a string in a set of tokens, using a given string as delimiter.
  *
  * @param str given string.
@@ -447,5 +447,7 @@ int main(int argc, char* argv[]) {
     parseScript (filename);
     printByteArr();
 
-	createBoilerplate();
+	 createBoilerplate();
+
+	 free(bytes);
 }
