@@ -384,11 +384,11 @@ const Instructions inst = {.forward = 0x0, \n\
 	\t.roll = 0x4 };\n"); 
 	fprintf(fp, "typedef unsigned char byte; \n\n");
 
-	fprintf(fp, "size_t size = %d; \n\n", bytes_used + 1);
+	fprintf(fp, "size_t size = %lu; \n\n", bytes_used + 1);
 
 	int i;
 	if (bytes_used > 0) {	
-		fprintf(fp, "byte bytes[%d] = {", bytes_used + 1); // make enough space for '\0' at the end
+		fprintf(fp, "byte bytes[%lu] = {", bytes_used + 1); // make enough space for '\0' at the end
 		for (i = 0 ; i < bytes_used; i++) {
 			fprintf(fp, "0x%x, ", bytes[i]);
 		}
