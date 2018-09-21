@@ -71,18 +71,28 @@
 
 typedef unsigned char byte;
 
-typedef struct { byte forward; 
+typedef struct {	  byte ascend;
+					  byte forward;
 					  byte backward; 
 					  byte left;
 					  byte right;
-					  byte roll; } Instructions;
+					  byte rollL;
+					  byte rollR;
+					  byte descend;
+					  byte wait;} Instructions;
 
 // Association of specific bytes to instructions
-const Instructions inst = {.forward = 0x0,
-							.backward = 0x1, 
-							.left = 0x2, 
-							.right = 0x3, 
-							.roll = 0x4 };
+const Instructions inst = {
+							.ascend = 0x0,
+							.forward = 0x1,
+							.backward = 0x2,
+							.left = 0x3,
+							.right = 0x4,
+							.rollL = 0x5,
+							.rollR = 0x6,
+							.descend = 0x7,
+							.wait = 0x8
+						  };
 
 
  
@@ -216,6 +226,10 @@ void tokenizationError() {
 	exit(1);
 }
 
+void intensityError() {
+	;
+}
+
 /**
  *  Executes the command corresponding to the given array of tokens.
  *  The first token is the command name, and the following tokens, its arguments.
@@ -239,16 +253,24 @@ int interpretTokens(char **tokens, size_t nt){
    checkByteArrSize();
  
    cmd = tokens[0];
-   if (!strcmp(cmd, "Forward")) {  
-        c = inst.forward;
+   if (!strcmp(cmd, "Ascend")) {
+        c = inst.ascend;
+   } else if (!strcmp(cmd, "Forward")) {
+	   c = inst.forward;
    } else if (!strcmp(cmd, "Backward")) {
         c = inst.backward;
    } else if (!strcmp(cmd, "Left")) {
         c = inst.left;
    } else if (!strcmp(cmd, "Right")) {
         c = inst.right;
-   } else if (!strcmp(cmd, "Roll")) {
-        c = inst.roll;
+   } else if (!strcmp(cmd, "RollL")) {
+        c = inst.rollL;
+   } else if (!strcmp(cmd, "RollR")) {
+	   c = inst.rollR;
+   } else if (!strcmp(cmd, "Wait")) {
+	   c = inst.wait;
+   } else if (!strcmp(cmd, "Descend")) {
+	   c = inst.descend;
    } else {
 		printf("\nINVALID COMMAND found: %s \n", cmd );
 		exit(1);
@@ -371,17 +393,28 @@ void createBoilerplate() {
 	
 	FILE *fp = fopen(boilerplate, "ab+");
 	fprintf(fp, "#include <stdio.h>\n#include <stdlib.h> \n#include <string.h> \n\n");
-	fprintf(fp, "typedef struct { char forward; \n\
+	fprintf(fp, "typedef struct { \n\
+	\tchar ascend; \n\
+	\tchar forward; \n\
 	\tchar backward; \n\
 	\tchar left; \n\
 	\tchar right; \n\
-	\tchar roll; } Instructions; \n\
+	\tchar rollL; \n\
+	\tchar rollR; \n\
+	\tchar descend; \n\
+	\tchar wait;} Instructions; \n\n\
 // Association of specific bytes to instructions \n\
-const Instructions inst = {.forward = 0x0, \n\
-	\t.backward = 0x1, \n\
-	\t.left = 0x2, \n\
-	\t.right = 0x3, \n\
-	\t.roll = 0x4 };\n"); 
+const Instructions inst = {\n\
+	\t.ascend = 0x0,\n\
+	\t.forward = 0x1, \n\
+	\t.backward = 0x2, \n\
+	\t.left = 0x3, \n\
+	\t.right = 0x4, \n\
+	\t.rollL = 0x5, \n\
+	\t.rollR = 0x6, \n\
+	\t.descend = 0x7, \n\
+	\t.wait = 0x8 \n\
+	\t};\n\n");
 	fprintf(fp, "typedef unsigned char byte; \n\n");
 
 	fprintf(fp, "size_t size = %lu; \n\n", bytes_used + 1);
@@ -402,20 +435,28 @@ const Instructions inst = {.forward = 0x0, \n\
 	\t\tparam = (int)bytes[i+1];\n \
 	\t\tswitch(bytes[i]) { \n \
 	\t\t\tcase 0x0: \n\
-	\t\t\t\tprintf(\"Forward (%%d)\\n\", param); \n\
-	\t\t\t\tbreak; \n\n\
+	\t\t\t\tprintf(\"Ascend (%%d)\\n\", param); \n\
 	\t\t\tcase 0x1: \n\
+	\t\t\t\tprintf(\"Forward (%%d)\\n\", param); \n\
+	\t\t\tcase 0x2: \n\
 	\t\t\t\tprintf(\"Backwards (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x2: \n\
+	\t\t\tcase 0x3: \n\
 	\t\t\t\tprintf(\"Left (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x3: \n\
+	\t\t\tcase 0x4: \n\
 	\t\t\t\tprintf(\"Right (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x4: \n\
-	\t\t\t\tprintf(\"Roll (%%d)\\n\", param); \n\
+	\t\t\tcase 0x5: \n\
+	\t\t\t\tprintf(\"RollL (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
+	\t\t\tcase 0x6: \n\
+	\t\t\t\tprintf(\"RollR (%%d)\\n\", param); \n\
+	\t\t\tcase 0x7: \n\
+	\t\t\t\tprintf(\"Descend (%%d)\\n\", param); \n\
+	\t\t\t\tbreak; \n\n\
+	\t\t\tcase 0x8: \n\
+	\t\t\t\tprintf(\"Wait (%%d)\\n\", param); \n\
 	\t\t\tdefault: \n\
 	\t\t\t\tbreak; \n\
 	\t\t} \n\
@@ -424,6 +465,22 @@ const Instructions inst = {.forward = 0x0, \n\
 int main() { \n\
 \tinterpretBytes(); \n\
 }");
+}
+
+// Create the byte array text used in the unity simulation
+void createByteArrText() {
+	char* simByteArray = "byteArray.txt";
+	// Remove any pre-existent copy of boilerplate.c before writing to the file.
+	remove(simByteArray);
+	
+	FILE *fp = fopen(simByteArray, "ab+");
+	int i;
+	if (bytes_used > 0) {
+		fprintf(fp, "0x%x", bytes[0]);
+		for (i = 1 ; i < bytes_used; i++) {
+			fprintf(fp, " 0x%x", bytes[i]);
+		}
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -447,7 +504,8 @@ int main(int argc, char* argv[]) {
     parseScript (filename);
     printByteArr();
 
-	 createBoilerplate();
-
-	 free(bytes);
+	createBoilerplate();
+	createByteArrText();
+	
+	free(bytes);
 }
