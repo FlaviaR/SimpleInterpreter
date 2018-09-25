@@ -79,7 +79,8 @@ typedef struct {	  byte ascend;
 					  byte rollL;
 					  byte rollR;
 					  byte descend;
-					  byte wait;} Instructions;
+					  byte wait;
+				} Instructions;
 
 // Association of specific bytes to instructions
 const Instructions inst = {
@@ -226,8 +227,9 @@ void tokenizationError() {
 	exit(1);
 }
 
-void intensityError() {
-	;
+void percentageError() {
+	printf("\nParameter error: Make sure that the given percentage parameters are between 0.0 and 1.0\n\n");
+	exit(1);
 }
 
 /**
@@ -245,7 +247,7 @@ int interpretTokens(char **tokens, size_t nt){
    char* cmd;
    byte c; 
    int param, i;
- 
+	
    // No tokens given
    if (nt < 1) return -1;
  
@@ -267,10 +269,10 @@ int interpretTokens(char **tokens, size_t nt){
         c = inst.rollL;
    } else if (!strcmp(cmd, "RollR")) {
 	   c = inst.rollR;
-   } else if (!strcmp(cmd, "Wait")) {
-	   c = inst.wait;
    } else if (!strcmp(cmd, "Descend")) {
 	   c = inst.descend;
+   } else if (!strcmp(cmd, "Wait")) {
+		   c = inst.wait;
    } else {
 		printf("\nINVALID COMMAND found: %s \n", cmd );
 		exit(1);
@@ -281,8 +283,13 @@ int interpretTokens(char **tokens, size_t nt){
 	 // Make sure there is enough room in the byte array to add a parameter
     checkByteArrSize();
  
-    param = atoi(tokens[1]) % 255; //Take the second argument in tokens which would be a number, and convert it to a character. Add it to the bytes array. NOTE - currently modded by 255 to prevent errors.
- 
+	int curCmdWait = strcmp(cmd, "Wait");
+	
+	// If the current command is a 'Wait' command, then expect an integer parameter, else expect a percentage
+	param = (!curCmdWait) ? atoi(tokens[1]) % 255 : (int) (atof(tokens[1]) * 100);
+	
+	if (param > 100 && curCmdWait) percentageError();
+	
     bytes[bytes_used++] = (byte) param;
 
 	 // Currently, it is expected that each token array will contain two elements, 
@@ -393,29 +400,29 @@ void createBoilerplate() {
 	
 	FILE *fp = fopen(boilerplate, "ab+");
 	fprintf(fp, "#include <stdio.h>\n#include <stdlib.h> \n#include <string.h> \n\n");
+	fprintf(fp, "typedef unsigned char byte; \n\n");
 	fprintf(fp, "typedef struct { \n\
-	\tchar ascend; \n\
-	\tchar forward; \n\
-	\tchar backward; \n\
-	\tchar left; \n\
-	\tchar right; \n\
-	\tchar rollL; \n\
-	\tchar rollR; \n\
-	\tchar descend; \n\
-	\tchar wait;} Instructions; \n\n\
+	\tbyte ascend; \n\
+	\tbyte forward; \n\
+	\tbyte backward; \n\
+	\tbyte left; \n\
+	\tbyte right; \n\
+	\tbyte rollL; \n\
+	\tbyte rollR; \n\
+	\tbyte descend; \n\
+	\tbyte wait;} Instructions; \n\n\
 // Association of specific bytes to instructions \n\
 const Instructions inst = {\n\
-	\t.ascend = 0x0,\n\
-	\t.forward = 0x1, \n\
-	\t.backward = 0x2, \n\
-	\t.left = 0x3, \n\
-	\t.right = 0x4, \n\
-	\t.rollL = 0x5, \n\
-	\t.rollR = 0x6, \n\
-	\t.descend = 0x7, \n\
-	\t.wait = 0x8 \n\
-	\t};\n\n");
-	fprintf(fp, "typedef unsigned char byte; \n\n");
+	\t.ascend = 0x%x,\n\
+	\t.forward = 0x%x, \n\
+	\t.backward = 0x%x, \n\
+	\t.left = 0x%x, \n\
+	\t.right = 0x%x, \n\
+	\t.rollL = 0x%x, \n\
+	\t.rollR = 0x%x, \n\
+	\t.descend = 0x%x, \n\
+	\t.wait = 0x%x \n\
+	\t};\n\n", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait);
 
 	fprintf(fp, "size_t size = %lu; \n\n", bytes_used + 1);
 
@@ -434,28 +441,28 @@ const Instructions inst = {\n\
 	\tfor (i = 0; i < size - 1; i += 2) { \n\
 	\t\tparam = (int)bytes[i+1];\n \
 	\t\tswitch(bytes[i]) { \n \
-	\t\t\tcase 0x0: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Ascend (%%d)\\n\", param); \n\
-	\t\t\tcase 0x1: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Forward (%%d)\\n\", param); \n\
-	\t\t\tcase 0x2: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Backwards (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x3: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Left (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x4: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Right (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x5: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"RollL (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x6: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"RollR (%%d)\\n\", param); \n\
-	\t\t\tcase 0x7: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Descend (%%d)\\n\", param); \n\
 	\t\t\t\tbreak; \n\n\
-	\t\t\tcase 0x8: \n\
+	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Wait (%%d)\\n\", param); \n\
 	\t\t\tdefault: \n\
 	\t\t\t\tbreak; \n\
@@ -464,7 +471,7 @@ const Instructions inst = {\n\
 	} \n\n\
 int main() { \n\
 \tinterpretBytes(); \n\
-}");
+}", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait);
 }
 
 // Create the byte array text used in the unity simulation
