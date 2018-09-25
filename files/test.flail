@@ -1,0 +1,8 @@
+Forward(0.95);
+Wait(1000);
+Forward(0.0);
+RollL(0.70);
+Forward(0.70);
+Wait(300);
+RollL(0.0);
+Forward(0.0);
