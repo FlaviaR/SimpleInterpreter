@@ -80,6 +80,7 @@ typedef struct {	  byte ascend;
 					  byte rollR;
 					  byte descend;
 					  byte wait;
+					  byte waitMili;
 				} Instructions;
 
 // Association of specific bytes to instructions
@@ -92,7 +93,8 @@ const Instructions inst = {
 							.rollL = 0x5,
 							.rollR = 0x6,
 							.descend = 0x7,
-							.wait = 0x8
+							.wait = 0x8,
+							.waitMili = 0x9
 						  };
 
 
@@ -251,6 +253,11 @@ int interpretTokens(char **tokens, size_t nt){
    // No tokens given
    if (nt < 1) return -1;
  
+   // Currently, it is expected that each token array will contain two elements,
+   // an instruction and a parameter, if there are more elements then the instructions probably
+   // weren't split correctly by a ';'
+   if (nt > 2) tokenizationError();
+	
    // Make sure there is enough room in the bytes array to add another instruction
    checkByteArrSize();
  
@@ -272,7 +279,9 @@ int interpretTokens(char **tokens, size_t nt){
    } else if (!strcmp(cmd, "Descend")) {
 	   c = inst.descend;
    } else if (!strcmp(cmd, "Wait")) {
-		   c = inst.wait;
+	   c = inst.wait;
+   } else if (!strcmp(cmd, "WaitMili")) {
+	    c = inst.waitMili;
    } else {
 		printf("\nINVALID COMMAND found: %s \n", cmd );
 		exit(1);
@@ -280,23 +289,42 @@ int interpretTokens(char **tokens, size_t nt){
 
     bytes[bytes_used++] = c;
  
-	 // Make sure there is enough room in the byte array to add a parameter
+	// Make sure there is enough room in the byte array to add a parameter
     checkByteArrSize();
  
 	int curCmdWait = strcmp(cmd, "Wait");
+	int curCmdWaitMili = strcmp(cmd, "WaitMili");
 	
-	// If the current command is a 'Wait' command, then expect an integer parameter, else expect a percentage
-	param = (!curCmdWait) ? atoi(tokens[1]) % 255 : (int) (atof(tokens[1]) * 100);
+	// Interpretation of commands:
+	// Wait(n) - n is in seconds, limited to a single byte hence 255 seconds
+	// WaitMili(n) - n is in miliseconds. The parameter has to be split up accordingly into bytes
+	// Every other command is expected to receive a percentage or an intensity level as a parameter
+	if (!curCmdWait) {
+		param = atoi(tokens[1]) % 255;
+		bytes[bytes_used++] = (byte) param;
+		
+	} else if (!curCmdWaitMili) {
+		param = atoi(tokens[1]);
+		int i;
+		int rep = param / 255;
+		if (rep) bytes[bytes_used++] = (byte)255;
+		for (i = 1; i < rep; i++) {
+			checkByteArrSize();
+			bytes[bytes_used++] = c;
+			bytes[bytes_used++] = (byte)255;
+		}
+		bytes[bytes_used++] = c;
+		bytes[bytes_used++] = (byte) (param - (rep * 255));
+	} else {
+		param = (int) (atof(tokens[1]) * 100);
+		
+		if (param > 100) {
+			printf("\nERROR on: %s %d", cmd, param);
+			percentageError();
+		}
+		bytes[bytes_used++] = (byte) param;
+	}
 	
-	if (param > 100 && curCmdWait) percentageError();
-	
-    bytes[bytes_used++] = (byte) param;
-
-	 // Currently, it is expected that each token array will contain two elements, 
-	 // an instruction and a parameter, if there are more elements then the instructions probablye
-	 // weren't split correctly by a ';'
-	 if (nt > 2) tokenizationError();
-
 	 return 0; 
 }
 
@@ -410,7 +438,9 @@ void createBoilerplate() {
 	\tbyte rollL; \n\
 	\tbyte rollR; \n\
 	\tbyte descend; \n\
-	\tbyte wait;} Instructions; \n\n\
+	\tbyte wait; \n\
+	\tbyte waitMili; \n\
+	} Instructions; \n\n\
 // Association of specific bytes to instructions \n\
 const Instructions inst = {\n\
 	\t.ascend = 0x%x,\n\
@@ -421,8 +451,9 @@ const Instructions inst = {\n\
 	\t.rollL = 0x%x, \n\
 	\t.rollR = 0x%x, \n\
 	\t.descend = 0x%x, \n\
-	\t.wait = 0x%x \n\
-	\t};\n\n", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait);
+	\t.wait = 0x%x, \n\
+	\t.waitMili = 0x%x \n\
+	\t};\n\n", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait, inst.waitMili);
 
 	fprintf(fp, "size_t size = %lu; \n\n", bytes_used + 1);
 
@@ -464,6 +495,10 @@ const Instructions inst = {\n\
 	\t\t\t\tbreak; \n\n\
 	\t\t\tcase 0x%x: \n\
 	\t\t\t\tprintf(\"Wait (%%d)\\n\", param); \n\
+	\t\t\t\tbreak; \n\n\
+	\t\t\tcase 0x%x: \n\
+	\t\t\t\tprintf(\"WaitMili (%%d)\\n\", param); \n\
+	\t\t\t\tbreak; \n\n\
 	\t\t\tdefault: \n\
 	\t\t\t\tbreak; \n\
 	\t\t} \n\
@@ -471,7 +506,7 @@ const Instructions inst = {\n\
 	} \n\n\
 int main() { \n\
 \tinterpretBytes(); \n\
-}", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait);
+}", inst.ascend, inst.forward, inst.backward, inst.left, inst.right, inst.rollL, inst.rollR, inst.descend, inst.wait, inst.waitMili);
 }
 
 // Create the byte array text used in the unity simulation
