@@ -54,7 +54,7 @@
  */
  
  
-//#include "flail.h"
+#include "flail.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,40 +69,11 @@
 #undef  __DEBUG__
 #endif
 
-typedef unsigned char byte;
-
-typedef struct {	  byte ascend;
-					  byte forward;
-					  byte backward; 
-					  byte left;
-					  byte right;
-					  byte rollL;
-					  byte rollR;
-					  byte descend;
-					  byte wait;
-					  byte waitMili;
-				} Instructions;
-
-// Association of specific bytes to instructions
-const Instructions inst = {
-							.ascend = 0x0,
-							.forward = 0x1,
-							.backward = 0x2,
-							.left = 0x3,
-							.right = 0x4,
-							.rollL = 0x5,
-							.rollR = 0x6,
-							.descend = 0x7,
-							.wait = 0x8,
-							.waitMili = 0x9
-						  };
-
-
- 
 size_t bytes_alloc = 1;
 size_t bytes_used = 0;
 byte* bytes = NULL; 
- 
+UsedInstructions* usedInstructions;
+
 /**
  *  Predicate for checking whether a string is made up entirely
  *  of white spaces (possibly with a newline ('\\n') at the end).
@@ -211,7 +182,8 @@ void checkByteArrSize() {
         bytes = realloc(bytes, bytes_alloc * sizeof(byte*));    
     }
 }
- 
+
+// Print the finalized byte array which at this point should contain all converted instructions
 void printByteArr() {
    int i;
 	if (bytes_used > 0) {	
@@ -229,9 +201,24 @@ void tokenizationError() {
 	exit(1);
 }
 
+// Thrown when the intensity parameter is not within the [0.0, 1.0] range
 void percentageError() {
 	printf("\nParameter error: Make sure that the given percentage parameters are between 0.0 and 1.0\n\n");
 	exit(1);
+}
+
+// Thrown when an instruction is called and never reset before a conflicting instruction is called.
+// Ex: Left(0.95);
+//     Right(0.75);
+void usageError(char** tokens) {
+	printf("Conflicting instructions found before %s %s. Please re-check your work.\n\n", tokens[0], tokens[1]);
+	exit(1);
+}
+
+// Keep track of which instructions are currently active
+// Reset them when the parameter is 0
+void trackInstruction(int* inst, int param) {
+	*inst = (param > 0) ? 1 : 0;
 }
 
 /**
@@ -262,24 +249,51 @@ int interpretTokens(char **tokens, size_t nt){
    checkByteArrSize();
  
    cmd = tokens[0];
+   param = (int) (atof(tokens[1]) * 100);
+	
    if (!strcmp(cmd, "Ascend")) {
-        c = inst.ascend;
+	   if (usedInstructions->descend > 0) usageError(tokens);
+	   c = inst.ascend;
+	   trackInstruction(&(usedInstructions->ascend), param);
+	   
    } else if (!strcmp(cmd, "Forward")) {
+	   if (usedInstructions->backward > 0) usageError(tokens);
 	   c = inst.forward;
+	   trackInstruction(&(usedInstructions->forward), param);
+	   
    } else if (!strcmp(cmd, "Backward")) {
+	   if (usedInstructions->forward > 0) usageError(tokens);
         c = inst.backward;
+	    trackInstruction(&(usedInstructions->backward), param);
+
    } else if (!strcmp(cmd, "Left")) {
+	   if (usedInstructions->right > 0) usageError(tokens);
         c = inst.left;
+	   trackInstruction(&(usedInstructions->left), param);
+
    } else if (!strcmp(cmd, "Right")) {
+	   if (usedInstructions->left > 0) usageError(tokens);
         c = inst.right;
+	   trackInstruction(&(usedInstructions->right), param);
+
    } else if (!strcmp(cmd, "RollL")) {
+	   if (usedInstructions->rollR > 0) usageError(tokens);
         c = inst.rollL;
+	   trackInstruction(&(usedInstructions->rollL), param);
+
    } else if (!strcmp(cmd, "RollR")) {
+	   if (usedInstructions->rollL > 0) usageError(tokens);
 	   c = inst.rollR;
+	   trackInstruction(&(usedInstructions->rollR), param);
+
    } else if (!strcmp(cmd, "Descend")) {
+	   if (usedInstructions->ascend > 0) usageError(tokens);
 	   c = inst.descend;
+	   trackInstruction(&(usedInstructions->descend), param);
+	   
    } else if (!strcmp(cmd, "Wait")) {
 	   c = inst.wait;
+	   
    } else if (!strcmp(cmd, "WaitMili")) {
 	    c = inst.waitMili;
    } else {
@@ -525,25 +539,42 @@ void createByteArrText() {
 	}
 }
 
+void init() {
+	usedInstructions ->  ascend = 0;
+	usedInstructions ->  descend = 0;
+	usedInstructions ->  forward = 0;
+	usedInstructions ->  backward = 0;
+	usedInstructions ->  left = 0;
+	usedInstructions ->  right = 0;
+	usedInstructions ->  rollL = 0;
+	usedInstructions ->  rollR = 0;
+}
+
 int main(int argc, char* argv[]) {
- 
-    bytes = calloc(bytes_alloc, sizeof(byte*));
-    char filename[256];
  
     if (argc < 2) {
         printf ("\nFlail: No file was given.\n\n");
         exit(1);    
     }
  
+	usedInstructions = malloc (sizeof (UsedInstructions));
+
+	init();
+	bytes = calloc(bytes_alloc, sizeof(byte*));
+	char filename[256];
+	
     // to prevent trash from appearing in "filename", fill it with '0's
     memset(filename, '\0', sizeof(filename)); 
  
     // save the first argument passed on the command line to "filename"
     // Strncpy - warning - if there are no null byte among the first n bytes of the src, the string placed
-    // indest will not be null-terminated. 
+    // in dest will not be null-terminated.
     strncpy (filename, argv[1], sizeof(filename)-1); 
      
     parseScript (filename);
+	
+	free(usedInstructions);
+	
     printByteArr();
 
 	createBoilerplate();
