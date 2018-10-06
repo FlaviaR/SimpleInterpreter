@@ -313,11 +313,8 @@ int interpretTokens(char **tokens, size_t nt){
 	// Wait(n) - n is in seconds, limited to a single byte hence 255 seconds
 	// WaitMili(n) - n is in miliseconds. The parameter has to be split up accordingly into bytes
 	// Every other command is expected to receive a percentage or an intensity level as a parameter
-	if (!curCmdWait) {
-		param = atoi(tokens[1]) % 255;
-		bytes[bytes_used++] = (byte) param;
+	if (!curCmdWait || !curCmdWaitMili) {
 		
-	} else if (!curCmdWaitMili) {
 		param = atoi(tokens[1]);
 		int i;
 		int rep = param / 255;
@@ -329,6 +326,7 @@ int interpretTokens(char **tokens, size_t nt){
 		}
 		bytes[bytes_used++] = c;
 		bytes[bytes_used++] = (byte) (param - (rep * 255));
+		
 	} else {
 		param = (int) (atof(tokens[1]) * 100);
 		
