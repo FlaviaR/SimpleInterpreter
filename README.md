@@ -1,6 +1,6 @@
 #Simple Interpreter
 
-Interpreter for the FLAIL languge for microdrones. <br>
+Interpreter for the FLAIL language for microdrones. <br>
 Version 1.2. <br><br>
 
 Currently accepts the following commands: <br>
@@ -12,8 +12,11 @@ Right, <br>
 Roll Left, <br>
 Roll Right, <br>
 Descend, <br>
+Repeat <iterations> { <Flail instructions> }, <br>
 Wait (seconds), <br>
 WaitMili (miliseconds) <br><br>
+
+
 
 
 
