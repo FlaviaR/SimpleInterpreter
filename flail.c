@@ -1,7 +1,6 @@
 /** @file flail.c
  *
- *  A very simple script interpreter
- flail.
+ *  A simple script interpreter for 'flail'.
  *
  *  This program reads a file, containing flail commands, line by line.
  *  The lines are then split at white spaces, and an array of tokens is created.
@@ -15,34 +14,36 @@
  *
  *  For instance:
  *
- *  - func roll (int ang) { # rotate by ang
+ *  - Repeat 2 { # rotate by ang
  *
  *  - Number of tokens = 5 (tokens after a '#' are discarded)
  *
  *  <PRE>
- *         tokens[0]: func
- *         tokens[1]: roll
- *         tokens[2]: (int
- *         tokens[3]: ang)
- *         tokens[4]: {
- *         tokens[5]: #
- *         tokens[6]: rotate
- *         tokens[7]: by
- *         tokens[8]: ang
+ *         tokens[0]: Repeat
+ *         tokens[1]: 2
+ *         tokens[2]: }
  *  </PRE>
  *
- *  The interpreter will then treat 'roll' as a function call.
+ *  The interpreter will then treat 'Repeat' as a function call.
  *
  *  - The commands implemented are:
  *
- *      1. forwards
- *      2. backwards
- *      3. left
- *      4. right
- *      5. roll
+ *      1. Forward
+ *      2. Backward
+ *      3. Left
+ *      4. Right
+ *      5. RollLeft
+ *		6. RollRight
+ *		7. Ascend
+ *		8. Descend
+ *		9. Wait
+ *		10. WaitMili
+ *		11. Repeat
+ *		12. SetMode
  *
  *  - To compile:
  *    - gcc flail.c -o flail-linux64
+ *		Or use the bash script 'run.sh' while passing in a file to read
  *
  *  @author Flavia Roma
  *  @since 08/27/2018
@@ -92,7 +93,7 @@ int numberOfRepetitions = 0;
 * The default is to expect intensity parameters.
 * The setMode instruction must be called to alternate between intensity and distance.
 * Where intensity bases the movement of the drone off of some percentage of its maximum speed,
-* while the distance expects integer values to designate the distance to be traveled.
+* while the distance expects integer values to designate the distance to be traveled or rotated.
 */
 enum mode mode;
 
