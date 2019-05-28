@@ -75,19 +75,20 @@
 
 
 byte* bytes = NULL;
-size_t bytes_alloc = 16;
+size_t bytes_alloc = 16; // Initial bytes allocation
 size_t bytes_used = 0;
 
 UsedInstructions* usedInstructions;
 
-
 byte* loopBytes = NULL;
 size_t loopB_alloc = 16;
 size_t loopB_used = 0;
+
+// numberOfRepetitions keeps track of how many repeat (or loop) iterations
+// have to be performed
+int numberOfRepetitions = -1;
 // Are we currently within a "Repeat" loop?
 bool inRepeatLoop = false;
-// How many repetitions must the loop execute?
-int numberOfRepetitions = 0;
 
 /** Current interpretation mode.
 * The default is to expect intensity parameters.
@@ -228,16 +229,25 @@ void addToByteArray(byte toAdd) {
 	else addToBytes(toAdd);
 }
 
+// Free and reset loop bytes array
+void clearLoopBytes() {
+	loopB_alloc = 16;
+	loopB_used = 0;
+	free(loopBytes);
+	loopBytes = calloc(loopB_alloc, sizeof(byte));
+}
+
 // Print the finalized byte array which at this point should contain all converted instructions
 void printByteArr(byte* byteArr, size_t num_bytes_used) {
     int i;
     if (num_bytes_used > 0) {
         printf("Byte Array -> [");
         for (i = 0 ; i < num_bytes_used; i+=2) {
-            printf("%d (%d), ", byteArr[i], byteArr[i+1]);
+			printf("[0x%x, 0x%x] ", bytes[i], bytes[i+1]);
         }
-        printf("]\n");
+        printf("]\n\n");
     }
+	printf("Number of bytes used: %zu\n", num_bytes_used);
 }
 
 // Launch error if instructions aren't separated by a ';' within the token array 
@@ -280,20 +290,41 @@ void repeatSyntaxCheck(char **tokens, size_t nt) {
     }
 }
 
+void printLoopBytes() {
+	int i;
+	printf("Loop Bytes array -> ");
+	for (i = 0; i < loopB_used; i+=2) {
+		printf("[0x%x, 0x%x]", loopBytes[i], loopBytes[i+1]);
+	}
+	printf("\n\n");
+}
+
 // Iterate through the loop array and add the stored commands 'numberOfRepetitions' times to the byte array.
-void iterateLoopArr() {
+void iterateLoopArr(int numberOfRepetitions) {
+	if (numberOfRepetitions <= 0) {
+		printf("\n\nNumber of repetitions is below or equal to 0.\n\n");
+		exit(0);
+	}
     int i, j;
     for (i = 0; i < numberOfRepetitions; i++) {
         for (j = 0 ; j < loopB_used; j++) {
 			addToBytes(loopBytes[j]);
         }
     }
+	printf("\n\n");
 }
 
 // Keep track of which instructions are currently active
 // Reset them when the parameter is 0
 void trackInstruction(int* inst, int param) {
     *inst = (param > 0) ? 1 : 0;
+}
+
+void addTokensToByteArr(byte inst, byte param) {
+	if (param != 0) {
+		addToByteArray(inst);
+		addToByteArray(param);
+	}
 }
 
 /**
@@ -325,7 +356,7 @@ int interpretTokens(char **tokens, size_t nt){
     // weren't split correctly by a ';'
     // The only exception is the 'Repeat' command.
     if (nt > 2 && strcmp(cmd, instList.repeat)) tokenizationError();
-    
+	
     if (!strcmp(cmd, instList.repeat)) {
         repeatSyntaxCheck(tokens, nt);
         
@@ -336,13 +367,18 @@ int interpretTokens(char **tokens, size_t nt){
         
         inRepeatLoop = true;
         numberOfRepetitions = atoi(tokens[1]);
+		printf("%d", numberOfRepetitions);
+
         
     } else if (!strcmp(cmd, "}") && inRepeatLoop) {
         inRepeatLoop = false;
-        
+		
         loopBytes = realloc(loopBytes, (loopB_used + 1) * sizeof(byte));
         loopBytes[loopB_used] = '\0';
-        iterateLoopArr();
+		
+        iterateLoopArr( numberOfRepetitions);
+		printLoopBytes();
+		clearLoopBytes();
         
     } else {
         
@@ -403,9 +439,9 @@ int interpretTokens(char **tokens, size_t nt){
             exit(1);
         }
         
-        // Ignore if the parameter is zero
-		if (tokens[1] != 0) addToByteArray(c);
-        
+//        // Ignore if the parameter is zero
+//		if (tokens[1] != 0) addToByteArray(c);
+		
         int curCmdWait = !strcmp(cmd, instList.wait) || !strcmp(cmd, instList.waitMili);
         int curCmdSetMode = !strcmp(cmd, instList.setMode);
         
@@ -420,7 +456,7 @@ int interpretTokens(char **tokens, size_t nt){
         if (curCmdSetMode) {
             // intensity -> 1, distance -> 2
             param = (mode == intensity) ? 1 : 2;
-			addToByteArray(param);
+			addTokensToByteArr(c, param);
 
         } else if (curCmdWait || mode == distance) {
 
@@ -433,22 +469,29 @@ int interpretTokens(char **tokens, size_t nt){
             //}
             
             if (param <= 255) {
-				addToByteArray(param);
+				addTokensToByteArr(c, param);
 
 			} else {
                 // Split up the parameter into chunks of 255 bits
                 int rep = param / 255;
                 int remainder = param - (rep * 255);
                 if (rep) {
-					addToByteArray((byte)255);
-                    for (i = 1; i < rep; i++) {
-                        addToByteArray(c);
-                        addToByteArray((byte)255);
-                    }
-                }
+//					addToByteArray((byte)255);
+//					rep -= 1;
+						// Overwrite the last instruction - Gross fix later
+						//bytes_used--;
+						
+					addTokensToByteArr(inst.repeatNextInstFor, (byte)rep);
+					addTokensToByteArr(c, (byte)255);
+				}
+					
+//                    for (i = 1; i < rep; i++) {
+//                        addToByteArray(c);
+//                        addToByteArray((byte)255);
+//                    }
+				
                 if (remainder) {
-                	addToByteArray(c);
-                	addToByteArray((byte)remainder);
+					addTokensToByteArr(c, (byte)remainder);
                 }
             }
             
@@ -460,7 +503,7 @@ int interpretTokens(char **tokens, size_t nt){
                 printf("\nERROR on: %s %d", cmd, param);
                 percentageError();
             }
-            addToByteArray((byte)param);
+			addTokensToByteArr(c, (byte)param);
         }
     }
     return 0;
@@ -608,7 +651,7 @@ void createBoilerplate() {
     int i;
     if (bytes_used > 0) {
         fprintf(fp, "byte bytes[%lu] = {", bytes_used + 1); // make enough space for '\0' at the end
-        for (i = 0 ; i < bytes_used; i++) {
+        for (i = 0 ; i < bytes_used - 1; i++) {
             fprintf(fp, "0x%x, ", bytes[i]);
         }
         fprintf(fp, "'\\0'};\n");
@@ -696,7 +739,7 @@ int main(int argc, char* argv[]) {
         printf ("\nFlail: No file was given.\n\n");
         exit(1);
     }
-    
+	
     mode = intensity;
     usedInstructions = malloc (sizeof (UsedInstructions));
     initUsedInst();
