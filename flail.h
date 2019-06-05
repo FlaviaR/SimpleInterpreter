@@ -32,9 +32,10 @@ typedef struct {
 	byte wait;
 	byte waitMili;
     byte setMode;
+	byte repeatNextInstFor;
 } Instructions;
 
-// List of instruction names
+// List of instruction names - used to associate correct spelling for instructions
 typedef struct {
     char* ascend;
     char* forward;
@@ -78,7 +79,8 @@ const Instructions inst = {
 	.descend  = 0x8,
 	.wait     = 0x9,
 	.waitMili = 0xA,
-    .setMode = 0xB
+    .setMode = 0xB,
+	.repeatNextInstFor = 0xC
 };
 
 // Association of specific instructions to their correct spelling
