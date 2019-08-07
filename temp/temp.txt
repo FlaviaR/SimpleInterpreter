@@ -1,0 +1,24 @@
+
+if (!strcmp(cmd, "Repeat")) {
+// it is expected that a "repeat" command will always be followed by the number of repetitions
+// required for the loop
+if (nt < 2) {
+printf ("Parameter error: Make sure that the 'Repeat' command is followed by the number of required repetitions. \n\n");
+exit(1);
+}
+char* repetitions = tokens[1];
+
+if (nt >= 3) {
+if (strcmp(tokens[2], "{") {
+printf ("Parameter error: Make sure that 'Repeat' follows the following structure: 'Repeat [times] [{] [commands] [}]. \n\n");
+exit(1);
+}
+
+}
+
+int i;
+for (i = 0; i < repetitions; i++) {
+
+}
+
+}
