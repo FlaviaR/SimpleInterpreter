@@ -16,6 +16,10 @@ Repeat <iterations> { <Flail instructions> }, <br>
 Wait (seconds), <br>
 WaitMili (miliseconds) <br><br>
 
+Bugs: <br>
+Parameter is not set before the conflicting instruction check is performed in interpretToken method. 
+<br>
+Set a default mode for the program if an invalid mode is given. Or exit the program.<br>
 
 
 
